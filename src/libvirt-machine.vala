@@ -7,7 +7,17 @@ private class Boxes.LibvirtMachine: Boxes.Machine {
     public GVirConfig.Domain domain_config { get; set; }
     public GVir.Connection connection { get; set; }
     public GVir.StorageVol? storage_volume { get; set; }
-    public VMCreator? vm_creator { get; set; } // Under installation if this is set to non-null
+    private VMCreator? _vm_creator; // Under installation if this is set to non-null
+    public VMCreator? vm_creator {
+        get {
+            return _vm_creator;
+        }
+
+        set {
+            _vm_creator = value;
+            under_construction = (value != null);
+        }
+    }
 
     private LibvirtMachineProperties properties;
 

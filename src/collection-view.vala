@@ -26,6 +26,7 @@ private class Boxes.CollectionView: Boxes.UI {
         TITLE = Gd.MainColumns.PRIMARY_TEXT,
         INFO = Gd.MainColumns.SECONDARY_TEXT,
         SELECTED = Gd.MainColumns.SELECTED,
+        UNDER_CONSTRUCTION = Gd.MainColumns.SHOW_ACTIVITY,
         ITEM = Gd.MainColumns.LAST,
 
         LAST
@@ -123,6 +124,7 @@ private class Boxes.CollectionView: Boxes.UI {
 
     private Gtk.TreeIter append (string title,
                                  string? info,
+                                 bool under_construction,
                                  CollectionItem item) {
         Gtk.TreeIter iter;
 
@@ -133,6 +135,7 @@ private class Boxes.CollectionView: Boxes.UI {
             model.set (iter, ModelColumns.INFO, info);
         model.set (iter, ModelColumns.SELECTED, false);
         model.set (iter, ModelColumns.ITEM, item);
+        model.set (iter, ModelColumns.UNDER_CONSTRUCTION, under_construction);
         update_screenshot (iter);
 
         item.set_data<Gtk.TreeIter?> ("iter", iter);
@@ -148,7 +151,7 @@ private class Boxes.CollectionView: Boxes.UI {
             return;
         }
 
-        var iter = append (machine.name, machine.info, item);
+        var iter = append (machine.name, machine.info,  machine.under_construction, item);
         var pixbuf_id = machine.notify["pixbuf"].connect (() => {
             // apparently iter is stable after insertion/removal/sort
             update_screenshot (iter);
@@ -174,6 +177,13 @@ private class Boxes.CollectionView: Boxes.UI {
             main_view.queue_draw ();
         });
         item.set_data<ulong> ("info_id", info_id);
+
+        var under_construct_id = machine.notify["under-construction"].connect (() => {
+            // apparently iter is stable after insertion/removal/sort
+            model.set (iter, ModelColumns.UNDER_CONSTRUCTION, machine.under_construction);
+            main_view.queue_draw ();
+        });
+        item.set_data<ulong> ("under_construct_id", under_construct_id);
 
         item.ui_state = App.app.ui_state;
         actor_remove (item.actor);
@@ -216,6 +226,8 @@ private class Boxes.CollectionView: Boxes.UI {
         item.disconnect (name_id);
         var info_id = item.get_data<ulong> ("info_id");
         item.disconnect (info_id);
+        var under_construct_id = item.get_data<ulong> ("under_construct_id");
+        item.disconnect (under_construct_id);
 
         if (item as Machine != null) {
             var machine = item as Machine;
@@ -281,6 +293,7 @@ private class Boxes.CollectionView: Boxes.UI {
                                    typeof (string),
                                    typeof (Gdk.Pixbuf),
                                    typeof (long),
+                                   typeof (bool),
                                    typeof (bool),
                                    typeof (CollectionItem));
         model.set_default_sort_func ((model, a, b) => {
