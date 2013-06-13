@@ -26,7 +26,7 @@ private class Boxes.CollectionView: Boxes.UI {
         TITLE = Gd.MainColumns.PRIMARY_TEXT,
         INFO = Gd.MainColumns.SECONDARY_TEXT,
         SELECTED = Gd.MainColumns.SELECTED,
-        UNDER_CONSTRUCTION = Gd.MainColumns.SHOW_ACTIVITY,
+        PULSE = Gd.MainColumns.PULSE,
         ITEM = Gd.MainColumns.LAST,
 
         LAST
@@ -124,7 +124,6 @@ private class Boxes.CollectionView: Boxes.UI {
 
     private Gtk.TreeIter append (string title,
                                  string? info,
-                                 bool under_construction,
                                  CollectionItem item) {
         Gtk.TreeIter iter;
 
@@ -135,7 +134,6 @@ private class Boxes.CollectionView: Boxes.UI {
             model.set (iter, ModelColumns.INFO, info);
         model.set (iter, ModelColumns.SELECTED, false);
         model.set (iter, ModelColumns.ITEM, item);
-        model.set (iter, ModelColumns.UNDER_CONSTRUCTION, under_construction);
         update_screenshot (iter);
 
         item.set_data<Gtk.TreeIter?> ("iter", iter);
@@ -151,7 +149,7 @@ private class Boxes.CollectionView: Boxes.UI {
             return;
         }
 
-        var iter = append (machine.name, machine.info,  machine.under_construction, item);
+        var iter = append (machine.name, machine.info,  item);
         var pixbuf_id = machine.notify["pixbuf"].connect (() => {
             // apparently iter is stable after insertion/removal/sort
             update_screenshot (iter);
@@ -178,9 +176,10 @@ private class Boxes.CollectionView: Boxes.UI {
         });
         item.set_data<ulong> ("info_id", info_id);
 
+        setup_activity (iter, machine);
         var under_construct_id = machine.notify["under-construction"].connect (() => {
             // apparently iter is stable after insertion/removal/sort
-            model.set (iter, ModelColumns.UNDER_CONSTRUCTION, machine.under_construction);
+            setup_activity (iter, machine);
             main_view.queue_draw ();
         });
         item.set_data<ulong> ("under_construct_id", under_construct_id);
@@ -189,6 +188,30 @@ private class Boxes.CollectionView: Boxes.UI {
         actor_remove (item.actor);
 
         update_item_visible (item);
+    }
+
+    private void setup_activity (Gtk.TreeIter iter, Machine machine) {
+        var activity_timeout = machine.get_data<uint> ("activity_timeout");
+        if (activity_timeout > 0) {
+            Source.remove (activity_timeout);
+            machine.set_data<uint> ("activity_timeout", 0);
+        }
+
+        if (!machine.under_construction) {
+            model.set (iter, ModelColumns.PULSE, int.MAX);
+
+            return;
+        }
+
+        int pulse = 0;
+        model.set (iter, ModelColumns.PULSE, pulse++);
+        activity_timeout = Timeout.add (100, () => {
+            model.set (iter, ModelColumns.PULSE, pulse++);
+            main_view.queue_draw ();
+
+            return true;
+        });
+        machine.set_data<uint> ("activity_timeout", activity_timeout);
     }
 
     public List<CollectionItem> get_selected_items () {
@@ -294,7 +317,7 @@ private class Boxes.CollectionView: Boxes.UI {
                                    typeof (Gdk.Pixbuf),
                                    typeof (long),
                                    typeof (bool),
-                                   typeof (bool),
+                                   typeof (int),
                                    typeof (CollectionItem));
         model.set_default_sort_func ((model, a, b) => {
             CollectionItem item_a, item_b;
