@@ -91,19 +91,11 @@ PKG_CHECK_MODULES(TRACKER, [tracker-sparql-1.0 >= $TRACKER_SPARQL], [TRACKER_VER
 )
 AC_SUBST(TRACKER_VERSION)
 
-
-VALA_ADD_CHECKFILE([src/gnome_boxes_vala.stamp])
-
 PKG_CHECK_MODULES(BOXES_COMMON, [
   glib-2.0 >= $GLIB_MIN_VERSION
   gio-2.0 >= $GLIB_MIN_VERSION
   libarchive >= $LIBARCHIVE_MIN_VERSION
 ])
-
-VALA_ADD_CHECKFILE([src/libcommon_vala.stamp])
-VALA_ADD_CHECKFILE([src/gnome_boxes_search_provider_vala.stamp])
-
-VALA_ADD_CHECKFILE([libgd/gd-1.0.vapi])
 
 AC_ARG_ENABLE(ovirt,
               AS_HELP_STRING([--enable-ovirt=yes|no|auto], [Enable support for OVirt]),
@@ -132,23 +124,27 @@ else
 fi
 AM_CONDITIONAL([HAVE_OVIRT], [test "x$have_govirt" = "xyes"])
 
-VALA_CHECK([0.24.0.65], [
-  gdk-pixbuf-2.0
-  glib-2.0
-  gtk+-3.0
-  gtk-vnc-2.0
-  gudev-1.0
-  libarchive
-  libosinfo-1.0
-  libsoup-2.4
-  libvirt-gconfig-1.0
-  libvirt-gobject-1.0
-  libxml-2.0
-  posix
-  rest-0.7
-  libusb-1.0
-  spice-client-gtk-3.0
-])
+dnl check for vala
+AM_PROG_VALAC([0.24.0.65])
+AS_IF([test x$VALAC = "x"],
+      [AC_MSG_ERROR([Cannot find the "valac" compiler in your PATH])],
+      [VALA_CHECK_PACKAGES( [
+          gdk-pixbuf-2.0
+          glib-2.0
+          gtk+-3.0
+          gtk-vnc-2.0
+          gudev-1.0
+          libarchive
+          libosinfo-1.0
+          libsoup-2.4
+          libvirt-gconfig-1.0
+          libvirt-gobject-1.0
+          libxml-2.0
+          posix
+          rest-0.7
+          libusb-1.0
+          spice-client-gtk-3.0
+      ])])
 
 dnl libgd
 LIBGD_INIT([
@@ -220,7 +216,6 @@ AC_MSG_NOTICE([
 
         prefix:                   ${prefix}
         c compiler:               ${CC} ${CFLAGS}
-        build from vala sources:  $enable_vala
         USB redirection support:  $enable_usbredir
         Smartcard support:        $enable_smartcard
         oVirt support:            $have_govirt

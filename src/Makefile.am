@@ -1,7 +1,7 @@
 NULL =
 BUILT_SOURCES =
 EXTRA_DIST =
-MAINTAINERCLEANFILES = *.stamp
+CLEANFILES = *.stamp
 
 cachedir=/var/cache/
 AM_CPPFLAGS =						\
@@ -64,7 +64,7 @@ libcommon_a_SOURCES =				\
 	$(libcommon_a_VALASOURCES:.vala=.c)	\
 	$(NULL)
 
-libcommon_a_CFLAGS = $(BOXES_COMMON_CFLAGS)
+libcommon_a_CFLAGS = $(BOXES_COMMON_CFLAGS) -I$(top_srcdir)/src
 
 libcommon_vala.stamp: $(libcommon_a_VALASOURCES)
 	$(AM_V_VALAC)$(VALAC) $(VALAFLAGS) $(VALA_DEBUG_FLAGS)	\
@@ -85,10 +85,9 @@ resource_files = $(shell $(GLIB_COMPILE_RESOURCES) --generate-dependencies --sou
 resources.c: $(gresource_file) $(resource_files)
 	$(AM_V_GEN) $(GLIB_COMPILE_RESOURCES) --target=$@ --sourcedir=$(top_srcdir)/data --generate-source $<
 
-MAINTAINERCLEANFILES += $(libcommon_a_SOURCES) $(libcommon_a_DEPENDENCIES)
+CLEANFILES += $(libcommon_a_SOURCES) $(libcommon_a_DEPENDENCIES)
 BUILT_SOURCES += resources.c
-EXTRA_DIST += $(libcommon_a_DEPENDENCIES) \
-	      $(libcommon_a_VALASOURCES)  \
+EXTRA_DIST += $(libcommon_a_VALASOURCES)  \
 	      $(gresource_file)
 
 bin_PROGRAMS = gnome-boxes
@@ -164,8 +163,8 @@ gnome_boxes_LDADD =				\
 	libcommon.a				\
 	$(NULL)
 
-gnome_boxes_CFLAGS = $(BOXES_CFLAGS) $(TRACKER_CFLAGS)
-$(srcdir)/gnome_boxes_vala.stamp: $(libcommon_a_DEPENDENCIES)
+gnome_boxes_CFLAGS = $(BOXES_CFLAGS) $(TRACKER_CFLAGS) -I$(top_srcdir)/src
+gnome_boxes_vala.stamp: $(libcommon_a_DEPENDENCIES)
 
 AM_VALAFLAGS += --pkg govirt-1.0 --pkg rest-0.7
 if HAVE_OVIRT
@@ -174,7 +173,7 @@ gnome_boxes_LDADD += $(OVIRT_LIBS)
 gnome_boxes_CFLAGS += $(OVIRT_CFLAGS)
 endif
 
-MAINTAINERCLEANFILES += $(gnome_boxes_SOURCES:.vala=.c)
+CLEANFILES += $(gnome_boxes_SOURCES:.vala=.c)
 
 libexec_PROGRAMS = gnome-boxes-search-provider
 
@@ -183,10 +182,10 @@ gnome_boxes_search_provider_SOURCES =		\
 	$(NULL)
 
 gnome_boxes_search_provider_LDADD = libcommon.a $(BOXES_COMMON_LIBS)
-gnome_boxes_search_provider_CFLAGS = $(BOXES_COMMON_CFLAGS)
-$(srcdir)/gnome_boxes_search_provider_vala.stamp: $(libcommon_a_DEPENDENCIES)
+gnome_boxes_search_provider_CFLAGS = $(BOXES_COMMON_CFLAGS) -I$(top_srcdir)/src
+gnome_boxes_search_provider_vala.stamp: $(libcommon_a_DEPENDENCIES)
 
-MAINTAINERCLEANFILES += $(gnome_boxes_search_provider_SOURCES:.vala=.c)
+CLEANFILES += $(gnome_boxes_search_provider_SOURCES:.vala=.c)
 
 EXTRA_DIST += config.vapi
 

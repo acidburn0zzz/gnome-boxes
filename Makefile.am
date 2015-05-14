@@ -21,7 +21,6 @@ EXTRA_DIST =					\
 	THANKS					\
 	HACKING					\
 	build-aux/git-version-gen		\
-	m4/boxes.m4				\
 	.version				\
 	$(INTLTOOL_FILES)			\
 	$(NULL)
@@ -66,9 +65,6 @@ $(top_srcdir)/.version:
 	echo $(VERSION) > $@-t && mv $@-t $@
 
 all:
-
-vala-clean:
-	rm -f `find . -name "*.stamp"`
 
 win-tools.iso:
 	@wget -O $@ http://people.gnome.org/~teuf/gnome-boxes/boxes-unattended-win-drivers/boxes-unattended-win-drivers-LATEST.iso
