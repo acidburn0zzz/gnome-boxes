@@ -709,8 +709,12 @@ private class Boxes.LibvirtMachine: Boxes.Machine {
             info = _("Live");
         else if (VMConfigurator.is_import_config (domain_config))
             info = _("Importing…");
-        else
+        else {
             info = null;
+
+            var ip = get_ip_address ();
+            if (ip != null)
+                info = ip;
         }
     }
 
