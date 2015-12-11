@@ -3,6 +3,7 @@
   <!-- interface-requires gtk+ 3.9 -->
   <template class="BoxesDisplayToolbar" parent="GtkHeaderBar">
     <property name="visible">True</property>
+    <property name="can-focus">True</property>
     <style>
       <class name="titlebar"/>
     </style>

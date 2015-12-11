@@ -54,7 +54,10 @@ private class Boxes.DisplayPage: Gtk.Box {
         this.window = window;
 
         overlay_toolbar_invisible_timeout = AppWindow.TRANSITION_DURATION;
-        event_box.set_events (EventMask.POINTER_MOTION_MASK | EventMask.SCROLL_MASK);
+        event_box.set_events (EventMask.POINTER_MOTION_MASK |
+                              EventMask.SCROLL_MASK |
+                              EventMask.KEY_PRESS_MASK |
+                              EventMask.KEY_RELEASE_MASK);
 
         window.window_state_event.connect ((event) => {
             update_toolbar_visible ();
@@ -138,6 +141,9 @@ private class Boxes.DisplayPage: Gtk.Box {
             });
         });
         keyboard_grabbed_id = display.notify["keyboard-grabbed"].connect(() => {
+            if (!display.keyboard_grabbed)
+                event_box.grab_focus ();
+
             Idle.add_full (Priority.HIGH, () => {
                 update_subtitle ();
                 return false;
@@ -203,8 +209,13 @@ private class Boxes.DisplayPage: Gtk.Box {
         return widget;
     }
 
+    private bool ctrl_released;
+    private bool alt_released;
+
     [GtkCallback]
     private bool on_event_box_event (Gdk.Event event) {
+        //print ("event: %s\n", event.type.to_string ());
+
         if (window.fullscreened && event.type == EventType.MOTION_NOTIFY) {
             var x = event.motion.x;
             var y = event.motion.y;
@@ -238,8 +249,35 @@ private class Boxes.DisplayPage: Gtk.Box {
         if (event.type == EventType.GRAB_BROKEN)
             return false;
 
-        if (event_box.get_child () != null)
-            event_box.get_child ().event (event);
+        var widget = event_box.get_child ();
+
+        if (event.type == EventType.KEY_PRESS)
+            return false;
+
+        if (event.type == EventType.KEY_RELEASE) {
+            print ("key released\n");
+            // Receiving key events mean event_box is focused & keyboard in ungrabbed
+            if (event.key.keyval == Key.Control_L)
+                ctrl_released = true;
+            else if (event.key.keyval == Key.Alt_L)
+                alt_released = true;
+
+            if (ctrl_released && alt_released) {
+                print ("all released\n");
+                ctrl_released = false;
+                alt_released = false;
+
+                if (widget != null) {
+                    print ("focusing\n");
+                    widget.grab_focus ();
+                }
+            }
+
+            return false;
+        }
+
+        if (widget != null)
+            widget.event (event);
 
         return false;
     }
