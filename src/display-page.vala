@@ -209,8 +209,10 @@ private class Boxes.DisplayPage: Gtk.Box {
         return widget;
     }
 
-    private bool ctrl_released;
-    private bool alt_released;
+    private Gdk.Event ctrl_press;
+    private Gdk.Event alt_press;
+    private Gdk.Event ctrl_release;
+    private Gdk.Event alt_release;
 
     [GtkCallback]
     private bool on_event_box_event (Gdk.Event event) {
@@ -250,34 +252,49 @@ private class Boxes.DisplayPage: Gtk.Box {
             return false;
 
         var widget = event_box.get_child ();
-
-        if (event.type == EventType.KEY_PRESS)
+        if (widget == null)
             return false;
 
-        if (event.type == EventType.KEY_RELEASE) {
-            print ("key released\n");
-            // Receiving key events mean event_box is focused & keyboard in ungrabbed
+        // Receiving key events mean event_box is focused & keyboard in ungrabbed
+        if (event.type == EventType.KEY_PRESS) {
             if (event.key.keyval == Key.Control_L)
-                ctrl_released = true;
+                ctrl_release = event;
             else if (event.key.keyval == Key.Alt_L)
-                alt_released = true;
+                alt_release = event;
+        } else if (event.type == EventType.KEY_RELEASE) {
+            //print ("key released\n");
 
-            if (ctrl_released && alt_released) {
-                print ("all released\n");
-                ctrl_released = false;
-                alt_released = false;
+            if (ctrl_press == null || alt_press == null) {
+                ctrl_press = null;
+                alt_press = null;
 
-                if (widget != null) {
-                    print ("focusing\n");
-                    widget.grab_focus ();
-                }
+                return false;
             }
+
+            if (event.key.keyval == Key.Control_L)
+                ctrl_release = event;
+            else if (event.key.keyval == Key.Alt_L)
+                alt_release = event;
+        } else {
+            widget.event (event);
 
             return false;
         }
 
-        if (widget != null)
-            widget.event (event);
+        if (ctrl_release != null && alt_release != null) {
+            print ("focusing\n");
+            widget.grab_focus ();
+
+            main_do_event (ctrl_press);
+            main_do_event (alt_press);
+            main_do_event (ctrl_release);
+            main_do_event (alt_release);
+
+            ctrl_press = null;
+            alt_press = null;
+            ctrl_release = null;
+            alt_release = null;
+        }
 
         return false;
     }
