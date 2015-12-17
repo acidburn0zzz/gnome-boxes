@@ -141,6 +141,7 @@ private class Boxes.DisplayPage: Gtk.Box {
             });
         });
         keyboard_grabbed_id = display.notify["keyboard-grabbed"].connect(() => {
+            print ("Keyboard %sgrabbed\n", display.keyboard_grabbed? "" : "un");
             if (!display.keyboard_grabbed)
                 event_box.grab_focus ();
 
@@ -257,12 +258,13 @@ private class Boxes.DisplayPage: Gtk.Box {
 
         // Receiving key events mean event_box is focused & keyboard in ungrabbed
         if (event.type == EventType.KEY_PRESS) {
+            print ("key pressed\n");
             if (event.key.keyval == Key.Control_L)
                 ctrl_release = event;
             else if (event.key.keyval == Key.Alt_L)
                 alt_release = event;
         } else if (event.type == EventType.KEY_RELEASE) {
-            //print ("key released\n");
+            print ("key released\n");
 
             if (ctrl_press == null || alt_press == null) {
                 ctrl_press = null;
@@ -276,19 +278,18 @@ private class Boxes.DisplayPage: Gtk.Box {
             else if (event.key.keyval == Key.Alt_L)
                 alt_release = event;
         } else {
+            if (!display.keyboard_grabbed) {
+                print ("Giving back focus 1\n");
+                widget.grab_focus ();
+            }
             widget.event (event);
 
             return false;
         }
 
         if (ctrl_release != null && alt_release != null) {
-            print ("focusing\n");
+            print ("Giving back focus 2\n");
             widget.grab_focus ();
-
-            main_do_event (ctrl_press);
-            main_do_event (alt_press);
-            main_do_event (ctrl_release);
-            main_do_event (alt_release);
 
             ctrl_press = null;
             alt_press = null;
