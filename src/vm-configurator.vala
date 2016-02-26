@@ -74,8 +74,6 @@ private class Boxes.VMConfigurator {
         set_target_media_config (domain, target_path, install_media);
         install_media.setup_domain_config (domain);
 
-        add_graphics_device (domain);
-
         // SPICE agent channel. This is needed for features like copy&paste between host and guest etc to work.
         var channel = new DomainChannel ();
         channel.set_target_type (DomainChannelTargetType.VIRTIO);
@@ -87,7 +85,10 @@ private class Boxes.VMConfigurator {
         add_usb_support (domain);
         add_smartcard_support (domain);
 
-        set_video_config (domain, install_media);
+        bool accel3d;
+        set_video_config (domain, install_media, out accel3d);
+        add_graphics_device (domain, accel3d);
+
         set_sound_config (domain, install_media);
         set_tablet_config (domain, install_media);
         set_mouse_config (domain, install_media);
@@ -252,12 +253,17 @@ private class Boxes.VMConfigurator {
         GLib.List<GVirConfig.DomainDevice> devices = null;
         DomainInterface iface = null;
         DomainGraphicsSpice graphics = null;
+        bool accel3d = false;
         foreach (var device in domain.get_devices ()) {
             if (device is DomainInterface)
                 iface = device as DomainInterface;
             else if (device is DomainGraphicsSpice)
                 graphics = device as DomainGraphicsSpice;
-            else
+            else if (device is DomainVideo) {
+                var model = (device as DomainVideo).get_model ();
+                accel3d = (model == DomainVideoModel.VIRTIO);
+                devices.prepend (device);
+            } else
                 devices.prepend (device);
         }
         devices.reverse ();
@@ -272,7 +278,7 @@ private class Boxes.VMConfigurator {
         }
 
         if (graphics != null)
-            add_graphics_device (domain);
+            add_graphics_device (domain, accel3d);
     }
 
     public static void set_target_media_config (Domain         domain,
@@ -329,9 +335,19 @@ private class Boxes.VMConfigurator {
         domain.set_os (os);
     }
 
-    private static void set_video_config (Domain domain, InstallerMedia install_media) {
+    private static void set_video_config (Domain domain, InstallerMedia install_media, out bool accel3d) {
         var video = new DomainVideo ();
-        video.set_model (DomainVideoModel.QXL);
+
+        /* Prefer virtio-gpu */
+        var device = find_device_by_prop (install_media.supported_devices, DEVICE_PROP_NAME, "virtio-gpu");
+        if (device != null) {
+            video.set_model (DomainVideoModel.VIRTIO);
+            video.set_accel3d (true);
+            accel3d = true;
+        } else {
+            video.set_model (DomainVideoModel.QXL);
+            accel3d = false;
+        }
 
         domain.add_device (video);
     }
@@ -507,9 +523,10 @@ private class Boxes.VMConfigurator {
         domain.add_device (iface);
     }
 
-    public static void add_graphics_device (Domain domain) {
+    public static void add_graphics_device (Domain domain, bool accel3d) {
         var graphics = new DomainGraphicsSpice ();
         graphics.set_autoport (false);
+        graphics.set_gl (accel3d);
         graphics.set_image_compression (DomainGraphicsSpiceImageCompression.OFF);
         domain.add_device (graphics);
     }
