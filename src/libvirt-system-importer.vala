@@ -9,6 +9,7 @@ errordomain Boxes.LibvirtSystemImporterError {
 private class Boxes.LibvirtSystemImporter: GLib.Object {
     private GVir.Connection connection;
     private GLib.List<GVir.Domain> domains;
+    private string[] disk_paths;
 
     public string wizard_menu_label {
         owned get {
@@ -41,7 +42,36 @@ private class Boxes.LibvirtSystemImporter: GLib.Object {
     public async LibvirtSystemImporter () throws GLib.Error {
         connection = yield get_system_virt_connection ();
 
-        domains = system_virt_connection.get_domains ();
+        var domains_temp = system_virt_connection.get_domains ();
+        domains = new GLib.List<GVir.Domain> ();
+        disk_paths = {};
+
+        foreach (var domain in domains_temp) {
+            try {
+                string disk_path;
+                var config = new GVirConfig.Domain ();
+
+                get_domain_info (domain, out config, out disk_path);
+
+                var file = File.new_for_path(disk_path);
+                if(file.query_exists ()){
+                    domains.append(domain);
+                    disk_paths+=disk_path;
+                }
+                else
+                    debug ("Could not find a valid disk image for %s", domain.get_name ());
+            } catch (GLib.Error error) {
+                warning ("%s", error.message);
+            }
+        }
+        try {
+            yield ensure_disks_readable (disk_paths);
+        } catch (GLib.Error error) {
+            warning ("Failed to make all libvirt systems disks readable: %s", error.message);
+
+            return;
+        }
+
         debug ("Fetched %u domains from system libvirt.", domains.length ());
         if (domains.length () == 0)
             throw new LibvirtSystemImporterError.NO_IMPORTS (_("No boxes to import"));
@@ -49,7 +79,6 @@ private class Boxes.LibvirtSystemImporter: GLib.Object {
 
     public async void import () {
         GVirConfig.Domain[] configs = {};
-        string[] disk_paths = {};
 
         foreach (var domain in domains) {
             GVirConfig.Domain config;
@@ -58,19 +87,11 @@ private class Boxes.LibvirtSystemImporter: GLib.Object {
             try {
                 get_domain_info (domain, out config, out disk_path);
                 configs += config;
-                disk_paths += disk_path;
             } catch (GLib.Error error) {
                 warning ("%s", error.message);
             }
         }
 
-        try {
-            yield ensure_disks_readable (disk_paths);
-        } catch (GLib.Error error) {
-            warning ("Failed to make all libvirt system disks readable: %s", error.message);
-
-            return;
-        }
 
         for (var i = 0; i < configs.length; i++)
             import_domain.begin (configs[i], disk_paths[i], null);
