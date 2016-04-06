@@ -7,7 +7,7 @@ private class Boxes.LibvirtMachineProperties: GLib.Object, Boxes.IPropertiesProv
 
     private weak LibvirtMachine machine; // Weak ref for avoiding cyclic ref */
 
-    public LibvirtMachineProperties (LibvirtMachine machine) {
+    public async LibvirtMachineProperties (LibvirtMachine machine) throws GLib.Error {
         this.machine = machine;
 
         machine.notify["name"].connect (() => {

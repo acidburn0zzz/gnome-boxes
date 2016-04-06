@@ -161,7 +161,7 @@ private class Boxes.LibvirtMachine: Boxes.Machine {
         debug ("new libvirt machine: " + domain.get_name ());
         this.connection = connection;
         this.domain = domain;
-        this.properties = new LibvirtMachineProperties (this);
+        this.properties = yield new LibvirtMachineProperties (this);
 
         try {
             var s = domain.get_info ().state;
