@@ -13,6 +13,8 @@ private class Boxes.LibvirtMachineProperties: GLib.Object, Boxes.IPropertiesProv
         machine.notify["name"].connect (() => {
             save_machine_name_change ();
         });
+
+        yield fetch_snapshots (null);
     }
 
     private bool save_machine_name_change () {

@@ -55,7 +55,7 @@ private class Boxes.SnapshotsProperty : Boxes.Property {
         snapshot_list.set_size_request (-1, 250);
         snapshot_list.set_sort_func (config_sort_func);
         added_id = snapshot_list.add.connect (update_snapshot_stack_page);
-        removed_id = snapshot_list.remove.connect (update_snapshot_stack_page);
+        removed_id = snapshot_list.remove.connect (on_snapshot_removed);
         snapshot_stack.add (snapshot_list);
 
         empty_label = new Gtk.Label (_("No snapshots created yet. Create one using the button below."));
@@ -83,21 +83,16 @@ private class Boxes.SnapshotsProperty : Boxes.Property {
 
         flushed.connect (on_flushed);
 
-        fetch_snapshots.begin ();
+        fetch_snapshots ();
     }
 
-    private async void fetch_snapshots () {
-        try {
-            yield machine.properties.fetch_snapshots (null);
-            var snapshots = machine.properties.get_snapshots ();
+    private void fetch_snapshots () {
+        var snapshots = machine.properties.get_snapshots ();
 
-            foreach (var snapshot in snapshots) {
-                var row = new SnapshotListRow (snapshot, machine);
-                row.notify["activity-message"].connect (row_activity_changed);
-                snapshot_list.add (row);
-            }
-        } catch (GLib.Error e) {
-            warning ("Could not fetch snapshots: %s", e.message);
+        foreach (var snapshot in snapshots) {
+            var row = new SnapshotListRow (snapshot, machine);
+            row.notify["activity-message"].connect (row_activity_changed);
+            snapshot_list.add (row);
         }
 
         update_snapshot_stack_page ();
@@ -126,6 +121,8 @@ private class Boxes.SnapshotsProperty : Boxes.Property {
             var new_row = new SnapshotListRow (new_snapshot, machine);
             new_row.notify["activity-message"].connect (row_activity_changed);
             snapshot_list.add (new_row);
+
+            yield machine.properties.fetch_snapshots (null);
         } catch (GLib.Error e) {
             var msg = _("Failed to create snapshot of %s").printf (machine.name);
             machine.window.notificationbar.display_error (msg);
@@ -145,6 +142,12 @@ private class Boxes.SnapshotsProperty : Boxes.Property {
             snapshot_stack.visible_child = snapshot_list;
         else
             snapshot_stack.visible_child = empty_label;
+    }
+
+    private void on_snapshot_removed () {
+        update_snapshot_stack_page ();
+
+        machine.properties.fetch_snapshots.begin (null);
     }
 
     private void on_flushed () {
