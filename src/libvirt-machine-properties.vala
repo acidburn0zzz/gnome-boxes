@@ -533,30 +533,7 @@ private class Boxes.LibvirtMachineProperties: GLib.Object, Boxes.IPropertiesProv
             var max_storage = volume_info.allocation + pool_info.available;
 
             if (min_storage >= max_storage) {
-                var label = new Gtk.Label ("");
-                var capacity = format_size (volume_info.capacity, FormatSizeFlags.DEFAULT);
-                var allocation = format_size (volume_info.allocation, FormatSizeFlags.DEFAULT);
-                var markup = _("<span color=\"grey\">Maximum Disk Size</span>\t\t %s <span color=\"grey\">(%s used)</span>").printf (capacity, allocation);
-                label.set_markup (markup);
-                label.halign = Gtk.Align.START;
-
-                add_property (ref list, null, label);
-
-                var infobar = new Gtk.InfoBar ();
-                infobar.message_type = Gtk.MessageType.WARNING;
-
-                var content = infobar.get_content_area ();
-
-                var image = new Gtk.Image ();
-                image.icon_name = "dialog-warning";
-                image.icon_size = 3;
-                content.add (image);
-
-                var msg = _("There is not enough space on your machine to increase the maximum disk size.");
-                label = new Gtk.Label (msg);
-                content.add (label);
-
-                add_property (ref list, null, infobar);
+                add_maxed_out_storage_property (ref list, volume_info);
 
                 return null;
             }
@@ -588,6 +565,33 @@ private class Boxes.LibvirtMachineProperties: GLib.Object, Boxes.IPropertiesProv
                      error.message);
             return null;
         }
+    }
+
+    private void add_maxed_out_storage_property (ref List<Boxes.Property> list, StorageVolInfo volume_info) {
+        var label = new Gtk.Label ("");
+        var capacity = format_size (volume_info.capacity, FormatSizeFlags.DEFAULT);
+        var allocation = format_size (volume_info.allocation, FormatSizeFlags.DEFAULT);
+        var markup = _("<span color=\"grey\">Maximum Disk Size</span>\t\t %s <span color=\"grey\">(%s used)</span>").printf (capacity, allocation);
+        label.set_markup (markup);
+        label.halign = Gtk.Align.START;
+
+        add_property (ref list, null, label);
+
+        var infobar = new Gtk.InfoBar ();
+        infobar.message_type = Gtk.MessageType.WARNING;
+
+        var content = infobar.get_content_area ();
+
+        var image = new Gtk.Image ();
+        image.icon_name = "dialog-warning";
+        image.icon_size = 3;
+        content.add (image);
+
+        var msg = _("There is not enough space on your machine to increase the maximum disk size.");
+        label = new Gtk.Label (msg);
+        content.add (label);
+
+        add_property (ref list, null, infobar);
     }
 
     private void on_storage_changed (Boxes.Property property, uint64 value) {
