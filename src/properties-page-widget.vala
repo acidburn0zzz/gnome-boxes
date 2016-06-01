@@ -3,6 +3,7 @@ using Gtk;
 
 private class Boxes.PropertiesPageWidget: Gtk.Box {
     public bool empty;
+    public bool reboot_required;
 
     private Gtk.Grid grid;
     private List<Boxes.Property> properties;
@@ -83,7 +84,7 @@ private class Boxes.PropertiesPageWidget: Gtk.Box {
     }
 
     public bool flush_changes () {
-        var reboot_required = false;
+        var reboot_required = this.reboot_required;
 
         foreach (var property in properties) {
             property.flush ();
