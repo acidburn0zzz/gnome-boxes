@@ -12,6 +12,7 @@ private class Boxes.PropertiesPageWidget: Gtk.Box {
     public signal void refresh_properties ();
 
     public delegate void SizePropertyChanged (PropertiesPageWidget widget, uint64 value);
+    public delegate void StringPropertyChanged (PropertiesPageWidget widget, string value);
 
     private int num_rows = 0;
 
@@ -206,5 +207,25 @@ private class Boxes.PropertiesPageWidget: Gtk.Box {
         });
 
         return box;
+    }
+
+    public void add_string_property (string name, string value, StringPropertyChanged? changed = null) {
+        if (changed != null) {
+            var entry = new Gtk.Entry ();
+
+            add_property (name, entry, null);
+
+            entry.text = value;
+
+            entry.notify["text"].connect (() => {
+                changed (this, entry.text);
+            });
+        } else {
+            var label = new Gtk.Label (value);
+            label.halign = Gtk.Align.START;
+            label.selectable = true;
+
+            add_property (name, label, null);
+        }
     }
 }
