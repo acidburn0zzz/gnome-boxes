@@ -11,7 +11,25 @@ private class Boxes.PropertiesPageWidget: Gtk.Box {
 
     public signal void refresh_properties ();
 
+    public delegate void SizePropertyChanged (PropertiesPageWidget widget, uint64 value);
+
     private int num_rows = 0;
+
+    private static void set_size_value_label_msg (Gtk.Label       label,
+                                                  uint64          size,
+                                                  uint64          allocation,
+                                                  FormatSizeFlags format_flags) {
+        var capacity = format_size (size, format_flags);
+
+        if (allocation == 0) {
+            label.set_text (capacity);
+        } else {
+            var allocation_str = format_size (allocation, format_flags);
+
+            // Translators: This is memory or disk size. E.g. "2 GB (1 GB used)".
+            label.set_markup (_("%s <span color=\"grey\">(%s used)</span>").printf (capacity, allocation_str));
+        }
+    }
 
     public PropertiesPageWidget (PropertiesPage page, Machine machine) {
         deferred_changes = new List<DeferredChange> ();
@@ -125,5 +143,68 @@ private class Boxes.PropertiesPageWidget: Gtk.Box {
 
             num_rows++;
         }
+    }
+
+    public Gtk.Widget add_size_property (string              name,
+                                         uint64              size,
+                                         uint64              min,
+                                         uint64              max,
+                                         uint64              allocation,
+                                         uint64              step,
+                                         SizePropertyChanged changed,
+                                         int64               recommended,
+                                         out Gtk.Scale       out_scale,
+                                         FormatSizeFlags     format_flags = FormatSizeFlags.DEFAULT) {
+        var box = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 0);
+        var name_label = new Gtk.Label.with_mnemonic (name);
+        name_label.halign = Gtk.Align.START;
+        name_label.get_style_context ().add_class ("dim-label");
+        box.add (name_label);
+        var value_label = new Gtk.Label ("");
+        set_size_value_label_msg (value_label, size, allocation, format_flags);
+        value_label.halign = Gtk.Align.START;
+        box.add (value_label);
+
+        var scale = new Gtk.Scale.with_range (Gtk.Orientation.HORIZONTAL, min, max, step);
+        out_scale = scale;
+        name_label.mnemonic_widget = scale;
+
+        var size_str = format_size (min, format_flags);
+        size_str = "<small>" + size_str + "</small>";
+        scale.add_mark (min, Gtk.PositionType.BOTTOM, size_str);
+
+        // Translators: This is memory or disk size. E.g. "1 GB (maximum)".
+        size_str =  "<small>" + _("%s (maximum)").printf (format_size (max, format_flags)) + "</small>";
+        scale.add_mark (max, Gtk.PositionType.BOTTOM, size_str);
+
+        scale.set_show_fill_level (true);
+        scale.set_restrict_to_fill_level (false);
+        scale.set_value (size);
+        scale.set_fill_level (size);
+        scale.set_draw_value (false);
+        scale.hexpand = true;
+        scale.margin_bottom = 20;
+
+        add_property (null, box, scale);
+
+        if (recommended > 0 &&
+            // FIXME: Better way to ensure recommended mark is not too close to min and max marks?
+            recommended >= (scale.adjustment.lower + Osinfo.GIBIBYTES) &&
+            recommended <= (scale.adjustment.upper - Osinfo.GIBIBYTES)) {
+
+            // Translators: This is memory or disk size. E.g. "1 GB (recommended)".
+            var str = "<small>" + _("%s (recommended)").printf (format_size (recommended, format_flags)) + "</small>";
+            scale.add_mark (recommended, Gtk.PositionType.BOTTOM, str);
+        }
+
+        scale.value_changed.connect (() => {
+            uint64 v = (uint64) scale.get_value ();
+            set_size_value_label_msg (value_label, v, allocation, format_flags);
+            scale.set_fill_level (v);
+
+            changed (this, (uint64) scale.get_value ());
+        });
+
+        return box;
     }
 }
