@@ -105,6 +105,7 @@ gnome_boxes_SOURCES =				\
 	collection.vala				\
 	collection-filter-switcher.vala		\
 	collection-toolbar.vala			\
+	deferred-change.vala			\
 	display-page.vala			\
 	display-toolbar.vala			\
 	display.vala				\
