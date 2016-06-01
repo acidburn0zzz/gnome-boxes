@@ -11,6 +11,8 @@ private class Boxes.PropertiesPageWidget: Gtk.Box {
 
     public signal void refresh_properties ();
 
+    private int num_rows = 0;
+
     public PropertiesPageWidget (PropertiesPage page, Machine machine) {
         deferred_changes = new List<DeferredChange> ();
 
@@ -48,35 +50,15 @@ private class Boxes.PropertiesPageWidget: Gtk.Box {
         properties = machine.get_properties (page);
         empty = properties.length () == 0;
         if (!empty) {
-            int current_row = 1;
             foreach (var property in properties) {
-                if (property.description != null) {
-                    var label_name = new Gtk.Label.with_mnemonic (property.description);
-                    label_name.get_style_context ().add_class ("dim-label");
-                    label_name.halign = property.description_alignment;
-                    label_name.hexpand = false;
-                    grid.attach (label_name, 0, current_row, 1, 1);
-                    var widget = property.widget;
-                    widget.hexpand = true;
-                    grid.attach (widget, 1, current_row, 1, 1);
-                    label_name.mnemonic_widget = widget;
-                } else {
-                    var widget = property.widget;
-                    widget.hexpand = true;
-                    grid.attach (widget, 0, current_row, 2, 1);
-                }
-
-                var widget = property.extra_widget;
-                if (widget != null) {
-                    current_row += 1;
-                    widget.hexpand = true;
-                    grid.attach (widget, 0, current_row, 2, 1);
-                }
+                add_property (property.description,
+                              property.widget,
+                              property.extra_widget,
+                              property.description_alignment);
 
                 property.refresh_properties.connect (() => {
                     this.refresh_properties ();
                 });
-                current_row += 1;
             }
         }
 
@@ -115,5 +97,33 @@ private class Boxes.PropertiesPageWidget: Gtk.Box {
         }
 
         deferred_changes.append (change);
+    }
+
+    public void add_property (string?     description,
+                              Gtk.Widget  widget,
+                              Gtk.Widget? extra_widget = null,
+                              Gtk.Align   description_alignment = Gtk.Align.END) {
+        if (description != null) {
+            var label_name = new Gtk.Label.with_mnemonic (description);
+            label_name.get_style_context ().add_class ("dim-label");
+            label_name.halign = description_alignment;
+            label_name.hexpand = false;
+            grid.attach (label_name, 0, num_rows, 1, 1);
+            widget.hexpand = true;
+            grid.attach (widget, 1, num_rows, 1, 1);
+            label_name.mnemonic_widget = widget;
+        } else {
+            widget.hexpand = true;
+            grid.attach (widget, 0, num_rows, 2, 1);
+        }
+
+        num_rows++;
+
+        if (extra_widget != null) {
+            extra_widget.hexpand = true;
+            grid.attach (extra_widget, 0, num_rows, 2, 1);
+
+            num_rows++;
+        }
     }
 }
