@@ -6,10 +6,13 @@ private class Boxes.PropertiesPageWidget: Gtk.Box {
 
     private Gtk.Grid grid;
     private List<Boxes.Property> properties;
+    private List<DeferredChange> deferred_changes;
 
     public signal void refresh_properties ();
 
     public PropertiesPageWidget (PropertiesPage page, Machine machine) {
+        deferred_changes = new List<DeferredChange> ();
+
         switch (page) {
         case PropertiesPage.GENERAL:
             name = _("General");
@@ -87,6 +90,29 @@ private class Boxes.PropertiesPageWidget: Gtk.Box {
             reboot_required |= property.reboot_required;
         }
 
+        foreach (var change in deferred_changes)
+            change.flush ();
+        deferred_changes = new List<DeferredChange> (); // FIXME: Better way to clear the list?
+
         return reboot_required;
+    }
+
+    public void add_deferred_change (DeferredChange change) {
+        DeferredChange? deferred = null;
+
+        foreach (var c in deferred_changes) {
+            if (c.id == change.id) {
+                deferred = c;
+
+                break;
+            }
+        }
+
+        if (deferred != null) {
+            deferred.unschedule ();
+            deferred_changes.remove (deferred);
+        }
+
+        deferred_changes.append (change);
     }
 }
