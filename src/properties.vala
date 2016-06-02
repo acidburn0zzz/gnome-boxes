@@ -23,7 +23,7 @@ private class Boxes.Properties: Gtk.Notebook, Boxes.UI {
         notify["ui-state"].connect (ui_state_changed);
     }
 
-    private void populate () {
+    private async void populate () {
         foreach (var page in get_children ())
             remove (page);
 
@@ -43,8 +43,10 @@ private class Boxes.Properties: Gtk.Notebook, Boxes.UI {
 
             page.refresh_properties.connect (() => {
                 var current_page = this.page;
-                this.populate ();
-                this.page = current_page;
+                this.populate.begin ((object, result) => {
+                    this.populate.end (result);
+                    this.page = current_page;
+                });
             });
         }
 
@@ -68,7 +70,7 @@ private class Boxes.Properties: Gtk.Notebook, Boxes.UI {
             restore_fullscreen = (previous_ui_state == UIState.DISPLAY && window.fullscreened);
             window.fullscreened = false;
 
-            populate ();
+            populate.begin ();
         } else if (previous_ui_state == UIState.PROPERTIES) {
             var reboot_required = false;
 
