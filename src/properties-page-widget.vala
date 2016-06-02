@@ -32,7 +32,7 @@ private class Boxes.PropertiesPageWidget: Gtk.Box {
         }
     }
 
-    public PropertiesPageWidget (PropertiesPage page, Machine machine) {
+    public async PropertiesPageWidget (PropertiesPage page, Machine machine) {
         deferred_changes = new List<DeferredChange> ();
 
         switch (page) {

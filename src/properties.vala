@@ -33,7 +33,7 @@ private class Boxes.Properties: Gtk.Notebook, Boxes.UI {
             return;
 
         for (var i = 0; i < PropertiesPage.LAST; i++) {
-            var page = new PropertiesPageWidget (i, machine);
+            var page = yield new PropertiesPageWidget (i, machine);
             if (page.empty)
                 continue;
 
