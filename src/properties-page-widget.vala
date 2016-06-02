@@ -66,7 +66,7 @@ private class Boxes.PropertiesPageWidget: Gtk.Box {
         scrolled_win.add (grid);
         pack_end (scrolled_win, true, true);
 
-        properties = machine.get_properties (page);
+        properties = yield machine.get_properties (page);
         empty = properties.length () == 0;
         if (!empty) {
             foreach (var property in properties) {

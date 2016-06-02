@@ -133,7 +133,7 @@ private class Boxes.VncDisplay: Boxes.Display {
             display.close ();
     }
 
-    public override List<Boxes.Property> get_properties (Boxes.PropertiesPage page) {
+    public override async List<Boxes.Property> get_properties (Boxes.PropertiesPage page) {
         var list = new List<Boxes.Property> ();
 
         switch (page) {

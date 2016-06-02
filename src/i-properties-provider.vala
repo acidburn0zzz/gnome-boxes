@@ -193,7 +193,7 @@ private class Boxes.EditableStringProperty : Boxes.Property {
 }
 
 private interface Boxes.IPropertiesProvider: GLib.Object {
-    public abstract List<Boxes.Property> get_properties (Boxes.PropertiesPage page);
+    public abstract async List<Boxes.Property> get_properties (Boxes.PropertiesPage page);
 
     protected Boxes.Property add_property (ref List<Boxes.Property> list,
                                            string? name,
