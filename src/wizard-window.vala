@@ -66,7 +66,7 @@ private class Boxes.WizardWindow : Gtk.Window, Boxes.UI {
         notify["ui-state"].connect (ui_state_changed);
     }
 
-    public void show_customization_page (LibvirtMachine machine) {
+    public async void show_customization_page (LibvirtMachine machine) {
         resource_properties = new GLib.List<Boxes.Property> ();
         machine.properties.get_resources_properties (ref resource_properties);
 

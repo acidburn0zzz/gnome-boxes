@@ -549,7 +549,7 @@ private class Boxes.Wizard: Gtk.Stack, Boxes.UI {
 
         if (libvirt_machine != null)
             summary.append_customize_button (() => {
-                wizard_window.show_customization_page (libvirt_machine);
+                wizard_window.show_customization_page.begin (libvirt_machine);
             });
 
         return true;
