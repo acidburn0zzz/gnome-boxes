@@ -21,10 +21,9 @@ private class Boxes.WizardWindow : Gtk.Window, Boxes.UI {
         get { return _page; }
         set {
             if (_page == WizardWindowPage.CUSTOMIZATION && value != WizardWindowPage.CUSTOMIZATION &&
-                resource_properties != null && resource_properties.length () > 0) {
-                foreach (var property in resource_properties)
-                    property.flush ();
-                resource_properties = null;
+                props_page_widget != null && !props_page_widget.empty) {
+                props_page_widget.flush_changes ();
+                props_page_widget  = null;
 
                 wizard.review.begin ();
             }
@@ -49,7 +48,7 @@ private class Boxes.WizardWindow : Gtk.Window, Boxes.UI {
     [GtkChild]
     public Notificationbar notificationbar;
 
-    private GLib.List<Boxes.Property> resource_properties;
+    private PropertiesPageWidget? props_page_widget;
 
     public WizardWindow (AppWindow app_window) {
         wizard.setup_ui (app_window, this);
@@ -67,30 +66,12 @@ private class Boxes.WizardWindow : Gtk.Window, Boxes.UI {
     }
 
     public async void show_customization_page (LibvirtMachine machine) {
-        resource_properties = new GLib.List<Boxes.Property> ();
-        machine.properties.get_resources_properties (ref resource_properties);
-
-        return_if_fail (resource_properties.length () > 0);
-
         foreach (var child in customization_grid.get_children ())
             customization_grid.remove (child);
 
-        var current_row = 0;
-        foreach (var property in resource_properties) {
-            if (property.widget == null || property.extra_widget == null) {
-                warn_if_reached ();
-
-                continue;
-            }
-
-            property.widget.hexpand = true;
-            customization_grid.attach (property.widget, 0, current_row, 1, 1);
-
-            property.extra_widget.hexpand = true;
-            customization_grid.attach (property.extra_widget, 0, current_row + 1, 1, 1);
-
-            current_row += 2;
-        }
+        var props_page_widget = new PropertiesPageWidget (PropertiesPage.SYSTEM);
+        customization_grid.add (props_page_widget);
+        yield machine.properties.add_resources_properties (props_page_widget);
         customization_grid.show_all ();
 
         page = WizardWindowPage.CUSTOMIZATION;

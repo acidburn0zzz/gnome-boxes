@@ -33,15 +33,18 @@ private class Boxes.Properties: Gtk.Notebook, Boxes.UI {
             return;
 
         for (var i = 0; i < PropertiesPage.LAST; i++) {
-            var page = yield new PropertiesPageWidget (i, machine);
+            var page = yield machine.get_properties (i);
             if (page.empty)
                 continue;
 
             var label = new Gtk.Label (page.name);
             insert_page (page, label, i);
             set_data<PropertiesPageWidget> (@"boxes-property-$i", page);
+            page.show_all ();
 
-            page.refresh_properties.connect (() => {
+            ulong props_refresh_id = 0;
+            props_refresh_id = page.refresh_properties.connect (() => {
+                page.disconnect (props_refresh_id);
                 var current_page = this.page;
                 this.populate.begin ((object, result) => {
                     this.populate.end (result);
@@ -79,6 +82,9 @@ private class Boxes.Properties: Gtk.Notebook, Boxes.UI {
                 if (page != null)
                     reboot_required |= page.flush_changes ();
             }
+
+            foreach (var page in get_children ())
+                remove (page);
 
             var machine = window.current_item as Machine;
             if (reboot_required && (machine.is_on || machine.state == Machine.MachineState.SAVED)) {

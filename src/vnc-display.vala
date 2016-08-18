@@ -133,20 +133,24 @@ private class Boxes.VncDisplay: Boxes.Display {
             display.close ();
     }
 
-    public override async List<Boxes.Property> get_properties (Boxes.PropertiesPage page) {
-        var list = new List<Boxes.Property> ();
+    public override async Boxes.PropertiesPageWidget get_properties (Boxes.PropertiesPage page) {
+        var widget = new PropertiesPageWidget (page);
 
+        yield add_properties (widget, page);
+
+        return widget;
+    }
+
+    public override async void add_properties (PropertiesPageWidget widget, PropertiesPage page) {
         switch (page) {
         case PropertiesPage.GENERAL:
             var toggle = new Gtk.Switch ();
             toggle.halign = Gtk.Align.START;
             display.bind_property ("read-only", toggle, "active",
                                    BindingFlags.BIDIRECTIONAL | BindingFlags.SYNC_CREATE);
-            add_property (ref list, _("Read-only"), toggle);
+            widget.add_property (_("Read-only"), toggle);
             break;
         }
-
-        return list;
     }
 
     public override void send_keys (uint[] keyvals) {

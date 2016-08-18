@@ -23,7 +23,7 @@ private class Boxes.PropertiesSnapshots: Boxes.PropertiesPageWidget {
     private ulong removed_id;
 
     public PropertiesSnapshots (LibvirtMachine machine) {
-        base (PropertiesPage.SNAPSHOTS, machine);
+        base (PropertiesPage.SNAPSHOTS);
 
         this.machine = machine;
         stack = new Gtk.Stack ();

@@ -80,8 +80,8 @@ private class Boxes.LibvirtMachineProperties: GLib.Object, Boxes.IPropertiesProv
         return builder.str;
     }
 
-    public async List<Boxes.Property> get_properties (Boxes.PropertiesPage page) {
-        var list = new List<Boxes.Property> ();
+    public async PropertiesPageWidget get_properties (Boxes.PropertiesPage page) {
+        var widget = new PropertiesPageWidget (page);
 
         // the wizard may want to modify display properties, before connect_display()
         if (machine.is_on && machine.display == null)
@@ -93,39 +93,37 @@ private class Boxes.LibvirtMachineProperties: GLib.Object, Boxes.IPropertiesProv
 
         switch (page) {
         case PropertiesPage.GENERAL:
-            var property = add_editable_string_property (ref list, _("_Name"), machine.name);
-            property.changed.connect ((property, name) => {
+            widget.add_string_property (_("_Name"), machine.name, (widget, name) => {
                 machine.name = name;
             });
 
-            var name_property = property;
             machine.notify["name"].connect (() => {
-                name_property.text = machine.name;
+                widget.refresh_properties ();
             });
 
             var ip = machine.get_ip_address ();
             if (ip != null)
-                add_string_property (ref list, _("IP Address"), ip);
+                widget.add_string_property (_("IP Address"), ip);
 
-            add_string_property (ref list, _("Broker"), machine.source.name);
+            widget.add_string_property (_("Broker"), machine.source.name);
             if (machine.display != null) {
                 // Translators: This is the protocal being used to connect to the display/desktop, e.g Spice, VNC, etc.
-                add_string_property (ref list, _("Display Protocol"), machine.display.protocol);
+                widget.add_string_property (_("Display Protocol"), machine.display.protocol);
                 if (machine.display.uri != null)
                     // Translators: This is the URL to connect to the display/desktop. e.g spice://somehost:5051.
-                    add_string_property (ref list, _("Display URL"), machine.display.uri);
+                    widget.add_string_property (_("Display URL"), machine.display.uri);
             }
 
             break;
 
         case PropertiesPage.SYSTEM:
-            add_resource_usage_graphs (ref list);
+            add_resource_usage_graphs (widget);
 
-            add_system_props_buttons (ref list);
+            add_system_props_buttons (widget);
 
-            get_resources_properties (ref list);
+            yield add_resources_properties (widget);
 
-            add_run_in_bg_property (ref list);
+            add_run_in_bg_property (widget);
 
             break;
 
@@ -136,7 +134,7 @@ private class Boxes.LibvirtMachineProperties: GLib.Object, Boxes.IPropertiesProv
                 var disk_config = device_config as GVirConfig.DomainDisk;
                 var disk_type = disk_config.get_guest_device_type ();
                 if (disk_type == GVirConfig.DomainDiskGuestDeviceType.CDROM)
-                    add_cdrom_property (disk_config, ref list);
+                    add_cdrom_property (disk_config, widget);
             }
 
             break;
@@ -147,7 +145,7 @@ private class Boxes.LibvirtMachineProperties: GLib.Object, Boxes.IPropertiesProv
                 // Snapshots currently don't work with host-passthrough
                 if (config.get_cpu ().get_mode () != GVirConfig.DomainCpuMode.HOST_PASSTHROUGH &&
                     !VMConfigurator.is_install_config (config))
-                    add_snapshots_property (ref list);
+                    return add_snapshots_property ();
             } catch (GLib.Error e) {
                 warning (e.message);
             }
@@ -155,16 +153,22 @@ private class Boxes.LibvirtMachineProperties: GLib.Object, Boxes.IPropertiesProv
             break;
         }
 
-        return list;
+        return widget;
     }
 
-    public void get_resources_properties (ref List<Boxes.Property> list) {
-        var ram_property = add_ram_property (ref list);
-        var storage_property = add_storage_property (ref list);
-        mark_recommended_resources.begin (ram_property, storage_property);
+    public async void add_resources_properties (PropertiesPageWidget widget) {
+        int64 ram = -1, storage = -1;
+        var resources = yield get_recommended_resources ();
+        if (resources != null) {
+            ram = resources.ram;
+            storage = resources.storage;
+        }
+
+        add_ram_property (widget, ram);
+        add_storage_property (widget, storage);
     }
 
-    private void add_cdrom_property (GVirConfig.DomainDisk disk_config, ref List<Boxes.Property> list) {
+    private void add_cdrom_property (GVirConfig.DomainDisk disk_config, PropertiesPageWidget widget) {
         var grid = new Gtk.Grid ();
         grid.set_orientation (Gtk.Orientation.HORIZONTAL);
         grid.set_column_spacing (12);
@@ -187,7 +191,7 @@ private class Boxes.LibvirtMachineProperties: GLib.Object, Boxes.IPropertiesProv
 
             if (machine.vm_creator.express_install || (media.os_media != null && media.os_media.live)) {
                 // Don't let user eject installer media if it's an express installation or a live media
-                add_property (ref list, _("CD/DVD"), grid);
+                widget.add_property (_("CD/DVD"), grid);
 
                 return;
             }
@@ -239,11 +243,10 @@ private class Boxes.LibvirtMachineProperties: GLib.Object, Boxes.IPropertiesProv
             }
         });
 
-        var property = add_property (ref list, _("CD/DVD"), grid);
-        property.description_alignment = Gtk.Align.START;
+        widget.add_property (_("CD/DVD"), grid, null, Gtk.Align.START);
     }
 
-    private void update_ram_property (Boxes.Property property) {
+    private void update_ram_property (PropertiesPageWidget widget) {
         try {
             var config = machine.domain.get_config (GVir.DomainXMLFlags.INACTIVE);
 
@@ -253,27 +256,18 @@ private class Boxes.LibvirtMachineProperties: GLib.Object, Boxes.IPropertiesProv
 
             debug ("RAM actual: %llu, pending: %llu", actual, pending);
             // somehow, there are rounded errors, so let's forget about 1Mb diff
-            property.reboot_required = (actual - pending) > 1; // no need for abs()
+            widget.reboot_required = (actual - pending) > 1; // no need for abs()
 
         } catch (GLib.Error e) {}
     }
 
-    private async void mark_recommended_resources (SizeProperty? ram_property, SizeProperty? storage_property) {
-        if (ram_property == null && storage_property == null)
-            return;
-
+    private async Osinfo.Resources? get_recommended_resources () {
         var os = yield get_os_for_machine (machine);
         if (os == null)
-            return;
+            return null;
 
         var architecture = machine.domain_config.get_os ().get_arch ();
-        var resources = OSDatabase.get_recommended_resources_for_os (os, architecture);
-        if (resources != null) {
-            if (ram_property != null)
-                ram_property.recommended = resources.ram;
-            if (storage_property != null)
-                storage_property.recommended = resources.storage;
-        }
+        return OSDatabase.get_recommended_resources_for_os (os, architecture);
     }
 
     private async Osinfo.Os? get_os_for_machine (LibvirtMachine machine) {
@@ -290,7 +284,7 @@ private class Boxes.LibvirtMachineProperties: GLib.Object, Boxes.IPropertiesProv
         }
     }
 
-    private void add_resource_usage_graphs (ref List<Boxes.Property> list) {
+    private void add_resource_usage_graphs (PropertiesPageWidget widget) {
         var grid = new Gtk.Grid ();
         grid.margin_top = 20;
         grid.margin_bottom = 20;
@@ -324,15 +318,17 @@ private class Boxes.LibvirtMachineProperties: GLib.Object, Boxes.IPropertiesProv
             net_graph.points = machine.net_stats;
         });
 
-        var prop = add_property (ref list, null, grid);
-        ulong flushed_id = 0;
-        flushed_id = prop.flushed.connect (() => {
+        widget.add_property (null, grid);
+        SourceFunc change_func = () => {
             machine.disconnect (stats_id);
-            prop.disconnect (flushed_id);
-        });
+
+            return false;
+        };
+        var change = new DeferredChange ("graphs-disconnect", (owned) change_func);
+        widget.add_deferred_change (change);
     }
 
-    private void add_system_props_buttons (ref List<Boxes.Property> list) {
+    private void add_system_props_buttons (PropertiesPageWidget widget) {
         var grid = new Gtk.Grid ();
         grid.margin_bottom = 20;
         grid.column_spacing = 5;
@@ -374,52 +370,53 @@ private class Boxes.LibvirtMachineProperties: GLib.Object, Boxes.IPropertiesProv
             machine.window.props_window.show_troubleshoot_log (log);
         });
 
-        var prop = add_property (ref list, null, grid);
-        ulong flushed_id = 0;
-        flushed_id = prop.flushed.connect (() => {
+        widget.add_property (null, grid);
+        SourceFunc change_func = () => {
             machine.disconnect (state_notify_id);
-            prop.disconnect (flushed_id);
-        });
+
+            return false;
+        };
+        var change = new DeferredChange ("troubleshooting-log-disconnect", (owned) change_func);
+        widget.add_deferred_change (change);
     }
 
-    private SizeProperty? add_ram_property (ref List<Boxes.Property> list) {
+    private void add_ram_property (PropertiesPageWidget widget, int64 recommended_ram) {
         try {
             var max_ram = machine.connection.get_node_info ().memory;
 
-            var property = add_size_property (ref list,
-                                              _("_Memory: "),
-                                              machine.domain_config.memory * Osinfo.KIBIBYTES,
-                                              64 * Osinfo.MEBIBYTES,
-                                              max_ram * Osinfo.KIBIBYTES,
-                                              0,
-                                              64 * Osinfo.MEBIBYTES,
-                                              FormatSizeFlags.IEC_UNITS);
-            property.description_alignment = Gtk.Align.START;
-            property.widget.margin_top = 5;
+            Gtk.Scale scale;
+            var prop_widget = widget.add_size_property (_("_Memory: "),
+                                                        machine.domain_config.memory * Osinfo.KIBIBYTES,
+                                                        64 * Osinfo.MEBIBYTES,
+                                                        max_ram * Osinfo.KIBIBYTES,
+                                                        0,
+                                                        64 * Osinfo.MEBIBYTES,
+                                                        on_ram_changed,
+                                                        recommended_ram,
+                                                        out scale,
+                                                        FormatSizeFlags.IEC_UNITS);
+            prop_widget.margin_top = 5;
             if ((VMConfigurator.is_install_config (machine.domain_config) ||
                  VMConfigurator.is_live_config (machine.domain_config)) &&
                 machine.window.ui_state != Boxes.UIState.WIZARD &&
-                machine.state != Machine.MachineState.FORCE_STOPPED)
-                property.sensitive = false;
-            else
-                property.changed.connect (on_ram_changed);
+                machine.state != Machine.MachineState.FORCE_STOPPED) {
+                prop_widget.sensitive = false;
+                scale.sensitive = false;
+            }
 
             machine.notify["state"].connect (() => {
                 if (!machine.is_on)
-                    property.reboot_required = false;
+                    widget.reboot_required = false;
             });
 
-            update_ram_property (property);
-
-            return property;
+            update_ram_property (widget);
         } catch (GLib.Error error) {
-            return null;
         }
     }
 
-    private void on_ram_changed (Boxes.Property property, uint64 value) {
+    private void on_ram_changed (PropertiesPageWidget widget, uint64 value) {
         // Ensure that we don't end-up changing RAM like a 1000 times a second while user moves the slider..
-        property.deferred_change = () => {
+        SourceFunc change_func = () => {
             var ram = (value + Osinfo.KIBIBYTES - 1) / Osinfo.KIBIBYTES;
             try {
                 var config = machine.domain.get_config (GVir.DomainXMLFlags.INACTIVE);
@@ -435,15 +432,17 @@ private class Boxes.LibvirtMachineProperties: GLib.Object, Boxes.IPropertiesProv
                          error.message);
             }
 
-            update_ram_property (property);
+            update_ram_property (widget);
 
             return false;
         };
+        var change = new DeferredChange ("ram-changed", (owned) change_func, 1);
+        widget.add_deferred_change (change);
     }
 
-    private SizeProperty? add_storage_property (ref List<Boxes.Property> list) {
+    private void add_storage_property (PropertiesPageWidget widget, int64 recommended_storage) {
         if (machine.importing || machine.storage_volume == null)
-            return null;
+            return;
 
         try {
             var volume_info = machine.storage_volume.get_info ();
@@ -460,7 +459,7 @@ private class Boxes.LibvirtMachineProperties: GLib.Object, Boxes.IPropertiesProv
                 label.set_markup (markup);
                 label.halign = Gtk.Align.START;
 
-                add_property (ref list, null, label);
+                widget.add_property (null, label);
 
                 var infobar = new Gtk.InfoBar ();
                 infobar.message_type = Gtk.MessageType.WARNING;
@@ -476,50 +475,50 @@ private class Boxes.LibvirtMachineProperties: GLib.Object, Boxes.IPropertiesProv
                 label = new Gtk.Label (msg);
                 content.add (label);
 
-                add_property (ref list, null, infobar);
+                widget.add_property (null, infobar);
 
-                return null;
+                return;
             }
 
-            var property = add_size_property (ref list,
-                                              _("Maximum _Disk Size: "),
-                                              volume_info.capacity,
-                                              min_storage,
-                                              max_storage,
-                                              volume_info.allocation,
-                                              256 * MEGABYTES);
-            property.description_alignment = Gtk.Align.START;
-            // Disable 'save on timeout' all together since that could lead us to very bad user experience:
-            // You accidently increase the capacity to too high value and if you are not quick enough to change
-            // it again, you'll not be able to correct this ever as we don't support shrinking of volumes.
-            property.defer_interval = 0;
+            Gtk.Scale scale;
+            var prop_widget = widget.add_size_property (_("Maximum _Disk Size: "),
+                                                        volume_info.capacity,
+                                                        min_storage,
+                                                        max_storage,
+                                                        volume_info.allocation,
+                                                        256 * MEGABYTES,
+                                                        on_storage_changed,
+                                                        recommended_storage,
+                                                        out scale);
             if ((VMConfigurator.is_install_config (machine.domain_config) ||
                  VMConfigurator.is_live_config (machine.domain_config)) &&
                 machine.window.ui_state != Boxes.UIState.WIZARD &&
-                machine.state != Machine.MachineState.FORCE_STOPPED)
-                property.sensitive = false;
-            else
-                property.changed.connect (on_storage_changed);
-
-            return property;
+                machine.state != Machine.MachineState.FORCE_STOPPED) {
+                prop_widget.sensitive = false;
+                scale.sensitive = false;
+            }
         } catch (GLib.Error error) {
             warning ("Failed to get information on volume '%s' or it's parent pool: %s",
                      machine.storage_volume.get_name (),
                      error.message);
-            return null;
         }
     }
 
-    private void on_storage_changed (Boxes.Property property, uint64 value) {
+    private void on_storage_changed (PropertiesPageWidget widget, uint64 value) {
         // Ensure that we don't end-up changing storage like a 1000 times a second while user moves the slider..
-        property.deferred_change = () => {
-            change_storage_size.begin (property, value);
+        // Also disable 'save on timeout' all together since that could lead us to very bad user experience:
+        // You accidently increase the capacity to too high value and if you are not quick enough to change
+        // it again, you'll not be able to correct this ever as we don't support shrinking of volumes.
+        SourceFunc change_func = () => {
+            change_storage_size.begin (value);
 
             return false;
         };
+        var change = new DeferredChange ("storage-changed", (owned) change_func);
+        widget.add_deferred_change (change);
     }
 
-    private async void change_storage_size (Boxes.Property property, uint64 value) {
+    private async void change_storage_size (uint64 value) {
         if (machine.storage_volume == null)
             return;
 
@@ -600,7 +599,7 @@ private class Boxes.LibvirtMachineProperties: GLib.Object, Boxes.IPropertiesProv
         return machine.domain.get_snapshots ();
     }
 
-    private void add_run_in_bg_property (ref List<Boxes.Property> list) {
+    private void add_run_in_bg_property (PropertiesPageWidget widget) {
         if (machine.connection != App.app.default_connection)
             return; // We only autosuspend machines on default connection so this property is N/A to other machines
 
@@ -626,13 +625,10 @@ private class Boxes.LibvirtMachineProperties: GLib.Object, Boxes.IPropertiesProv
                                               _("“%s” will be paused automatically to save resources.").printf (name);
         });
 
-        add_property (ref list, null, box, null);
+        widget.add_property (null, box, null);
     }
 
-    private Boxes.SnapshotsProperty add_snapshots_property (ref List<Boxes.Property> list) {
-        var property = new SnapshotsProperty (machine);
-        list.append (property);
-
-        return property;
+    private PropertiesSnapshots add_snapshots_property () {
+        return new PropertiesSnapshots (machine);
     }
 }

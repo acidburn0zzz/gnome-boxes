@@ -384,13 +384,13 @@ private class Boxes.LibvirtMachine: Boxes.Machine {
         }
     }
 
-    public override async List<Boxes.Property> get_properties (Boxes.PropertiesPage page) {
-        var list = yield properties.get_properties (page);
+    public override async Boxes.PropertiesPageWidget get_properties (Boxes.PropertiesPage page) {
+        var widget = yield properties.get_properties (page);
 
         if (display != null)
-            list.concat (yield display.get_properties (page));
+            yield display.add_properties (widget, page);
 
-        return list;
+        return widget;
     }
 
     public bool update_display () throws GLib.Error {

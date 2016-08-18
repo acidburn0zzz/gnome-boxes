@@ -306,16 +306,22 @@ private class Boxes.SpiceDisplay: Boxes.Display {
         }
     }
 
-    public override async List<Boxes.Property> get_properties (Boxes.PropertiesPage page) {
-        var list = new List<Boxes.Property> ();
+    public override async Boxes.PropertiesPageWidget get_properties (Boxes.PropertiesPage page) {
+        var widget = new PropertiesPageWidget (page);
 
+        yield add_properties (widget, page);
+
+        return widget;
+    }
+
+    public override async void add_properties (PropertiesPageWidget widget, PropertiesPage page) {
         switch (page) {
         case PropertiesPage.GENERAL:
             var toggle = new Gtk.Switch ();
             gtk_session.bind_property ("auto-clipboard", toggle, "active",
                                        BindingFlags.BIDIRECTIONAL | BindingFlags.SYNC_CREATE);
             toggle.halign = Gtk.Align.START;
-            add_property (ref list, _("Share Clipboard"), toggle);
+            widget.add_property (_("Share Clipboard"), toggle);
 
             if (!connected || main_channel.agent_connected)
                 break;
@@ -329,7 +335,7 @@ private class Boxes.SpiceDisplay: Boxes.Display {
             label.use_markup = true;
             label.get_style_context ().add_class ("boxes-spice-tools-notice-label");
 
-            add_property (ref list, null, label);
+            widget.add_property (null, label);
             break;
 
         case PropertiesPage.DEVICES:
@@ -341,7 +347,7 @@ private class Boxes.SpiceDisplay: Boxes.Display {
                 var devs = get_usb_devices (manager);
 
                 if (devs.length <= 0)
-                    return list;
+                    return;
 
                 devs.sort ( (a, b) => {
                     string str_a = a.get_description ("    %1$s %2$s");
@@ -395,20 +401,18 @@ private class Boxes.SpiceDisplay: Boxes.Display {
                     });
                 }
 
-                var usb_property = add_property (ref list, _("USB devices"), new Gtk.Label (""), frame);
+                widget.add_property (_("USB devices"), new Gtk.Label (""), frame);
 
                 manager.device_added.connect ((manager, dev) => {
-                    usb_property.refresh_properties ();
+                    widget.refresh_properties ();
                 });
                 manager.device_removed.connect ((manager, dev) => {
-                    usb_property.refresh_properties ();
+                    widget.refresh_properties ();
                 });
             } catch (GLib.Error error) {
             }
             break;
         }
-
-        return list;
     }
 
     public override void send_keys (uint[] keyvals) {

@@ -2,11 +2,10 @@
 using Gtk;
 
 private class Boxes.PropertiesPageWidget: Gtk.Box {
-    public bool empty;
+    public bool empty { get { return (grid.get_children ().length () == 0); } }
     public bool reboot_required;
 
     private Gtk.Grid grid;
-    private List<Boxes.Property> properties;
     private List<DeferredChange> deferred_changes;
 
     public signal void refresh_properties ();
@@ -32,7 +31,7 @@ private class Boxes.PropertiesPageWidget: Gtk.Box {
         }
     }
 
-    public async PropertiesPageWidget (PropertiesPage page, Machine machine) {
+    public PropertiesPageWidget (PropertiesPage page) {
         deferred_changes = new List<DeferredChange> ();
 
         switch (page) {
@@ -66,31 +65,11 @@ private class Boxes.PropertiesPageWidget: Gtk.Box {
         scrolled_win.add (grid);
         pack_end (scrolled_win, true, true);
 
-        properties = yield machine.get_properties (page);
-        empty = properties.length () == 0;
-        if (!empty) {
-            foreach (var property in properties) {
-                add_property (property.description,
-                              property.widget,
-                              property.extra_widget,
-                              property.description_alignment);
-
-                property.refresh_properties.connect (() => {
-                    this.refresh_properties ();
-                });
-            }
-        }
-
         show_all ();
     }
 
     public bool flush_changes () {
         var reboot_required = this.reboot_required;
-
-        foreach (var property in properties) {
-            property.flush ();
-            reboot_required |= property.reboot_required;
-        }
 
         foreach (var change in deferred_changes)
             change.flush ();

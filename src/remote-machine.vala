@@ -53,30 +53,28 @@ private class Boxes.RemoteMachine: Boxes.Machine, Boxes.IPropertiesProvider {
         }
     }
 
-    public override async List<Boxes.Property> get_properties (Boxes.PropertiesPage page) {
-        var list = new List<Boxes.Property> ();
+    public override async PropertiesPageWidget get_properties (Boxes.PropertiesPage page) {
+        var widget = new PropertiesPageWidget (page);
 
         switch (page) {
         case PropertiesPage.GENERAL:
-            var property = add_editable_string_property (ref list, _("_Name"), source.name);
-            property.changed.connect ((property, name) => {
+            widget.add_string_property (_("_Name"), source.name, (widget, name) => {
                 this.name = name;
             });
 
-            var name_property = property;
             notify["name"].connect (() => {
-                name_property.text = name;
+                widget.refresh_properties ();
             });
 
-            add_string_property (ref list, _("Protocol"), source.source_type.up ());
-            if (is_connected) {
-                add_string_property (ref list, _("URL"), source.uri);
-            } else {
-                property = add_editable_string_property (ref list, _("_URL"), source.uri);
-                property.changed.connect ((property, uri) => {
+            widget.add_string_property (_("Protocol"), source.source_type.up ());
+            PropertiesPageWidget.StringPropertyChanged? on_changed;
+            if (is_connected)
+                on_changed = null;
+            else
+                on_changed = (widget, uri) => {
                     source.uri = uri;
-               });
-            }
+                };
+            widget.add_string_property (_("_URL"), source.uri, on_changed);
 
             break;
         }
@@ -85,12 +83,12 @@ private class Boxes.RemoteMachine: Boxes.Machine, Boxes.IPropertiesProvider {
             if (display == null)
                 display = create_display ();
 
-            list.concat (yield display.get_properties (page));
+            yield display.add_properties (widget, page);
         } catch (Boxes.Error error) {
             warning (error.message);
         }
 
-        return list;
+        return widget;
     }
 
     public override void delete (bool by_user = true) {

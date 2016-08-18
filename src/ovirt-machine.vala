@@ -63,20 +63,20 @@ private class Boxes.OvirtMachine: Boxes.Machine {
         }
     }
 
-    public override async List<Boxes.Property> get_properties (Boxes.PropertiesPage page) {
-        var list = new List<Boxes.Property> ();
+    public override async PropertiesPageWidget get_properties (Boxes.PropertiesPage page) {
+        var widget = new PropertiesPageWidget (page);
 
         switch (page) {
         case PropertiesPage.GENERAL:
-            add_string_property (ref list, _("Broker"), source.name);
-            add_string_property (ref list, _("Protocol"), display.protocol);
-            add_string_property (ref list, _("URL"), display.uri);
+            widget.add_string_property (_("Broker"), source.name);
+            widget.add_string_property (_("Protocol"), display.protocol);
+            widget.add_string_property (_("URL"), display.uri);
             break;
         }
 
-        list.concat (yield display.get_properties (page));
+        yield display.add_properties (widget, page);
 
-        return list;
+        return widget;
     }
 
     public override void restart () {} // See FIXME on RemoteMachine.restart
