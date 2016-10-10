@@ -1,0 +1,21 @@
+option('strict-cc',
+       type:        'boolean',
+       value:       false,
+       description: 'Enable strict C compiler')
+
+option('debug',
+       type:        'boolean',
+       value:       false,
+       description: 'Enable debugging')
+
+option('enable-ovirt',
+       type:        'combo',
+       choices:     ['yes', 'no', 'auto'],
+       value:       'auto',
+       description: 'Enable oVirt')
+
+option('enable-installed-tests',
+       type:        'boolean',
+       value:       true,
+       description: 'Enable installed tests')
+

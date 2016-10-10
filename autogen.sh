@@ -8,11 +8,18 @@ test -z "$srcdir" && srcdir=.
 olddir=`pwd`
 
 cd "$srcdir"
+mkdir subprojects
+cd subprojects
 git submodule update --init --recursive
-autoreconf -v --force --install
-intltoolize -f
 
 cd "$olddir"
+
 if [ -z "$NOCONFIGURE" ]; then
-    "$srcdir"/configure --enable-maintainer-mode --enable-vala --enable-debug ${1+"$@"}
+    mkdir build
+    cd build
+    meson --enable-debug
+
+    cd "$olddir"
+
+    echo "Now run ninja (or ninja-build) in build director to build Boxes"
 fi
