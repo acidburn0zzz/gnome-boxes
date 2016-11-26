@@ -39,7 +39,6 @@ private class Boxes.Properties: Gtk.Notebook, Boxes.UI {
 
             var label = new Gtk.Label (page.name);
             insert_page (page, label, i);
-            set_data<PropertiesPageWidget> (@"boxes-property-$i", page);
             page.show_all ();
 
             ulong props_refresh_id = 0;
@@ -77,14 +76,13 @@ private class Boxes.Properties: Gtk.Notebook, Boxes.UI {
         } else if (previous_ui_state == UIState.PROPERTIES) {
             var reboot_required = false;
 
-            for (var i = 0; i < PropertiesPage.LAST; i++) {
-                var page = get_data<PropertiesPageWidget> (@"boxes-property-$i");
-                if (page != null)
-                    reboot_required |= page.flush_changes ();
-            }
+            foreach (var child in get_children ()) {
+                var page = child as PropertiesPageWidget;
 
-            foreach (var page in get_children ())
-                remove (page);
+                reboot_required |= page.flush_changes ();
+
+                remove (child);
+            }
 
             var machine = window.current_item as Machine;
             if (reboot_required && (machine.is_on || machine.state == Machine.MachineState.SAVED)) {
