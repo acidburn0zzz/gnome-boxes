@@ -372,6 +372,7 @@ private class Boxes.LibvirtMachineProperties: GLib.Object, Boxes.IPropertiesProv
 
         widget.add_property (null, grid);
         SourceFunc change_func = () => {
+            print ("%s trouble\n", machine.name);
             machine.disconnect (state_notify_id);
 
             return false;

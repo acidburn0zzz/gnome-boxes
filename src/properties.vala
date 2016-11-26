@@ -43,6 +43,7 @@ private class Boxes.Properties: Gtk.Notebook, Boxes.UI {
 
             ulong props_refresh_id = 0;
             props_refresh_id = page.refresh_properties.connect (() => {
+                print ("refreshing properties\n");
                 page.disconnect (props_refresh_id);
                 var current_page = this.page;
                 this.populate.begin ((object, result) => {

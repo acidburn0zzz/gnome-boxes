@@ -68,6 +68,10 @@ private class Boxes.PropertiesPageWidget: Gtk.Box {
         show_all ();
     }
 
+    ~PropertiesPageWidget () {
+        print ("destroyed: %s\n", name);
+    }
+
     public bool flush_changes () {
         var reboot_required = this.reboot_required;
 
