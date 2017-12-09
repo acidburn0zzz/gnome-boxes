@@ -14,7 +14,6 @@ valac = meson.get_compiler ('vala')
 glib = dependency ('glib-2.0', version: '>= 2.38.0')
 gio = dependency ('gio-2.0', version: '>= 2.38.0')
 gobject = dependency ('gobject-2.0', version: '>= 2.44')
-govirt = dependency ('govirt-1.0', version: '>= 0.3.4')
 gtk = dependency ('gtk+-3.0', version: '>= 3.19.8')
 gtk_vnc = dependency ('gtk-vnc-2.0', version: '>= 0.4.4')
 gudev = dependency ('gudev-1.0', version: '>= 165')
@@ -37,7 +36,6 @@ config = valac.find_library ('config', dirs: src_dir)
 gio_workaround = valac.find_library ('gio-2.0-workaround', dirs: vapi_dir)
 linux = valac.find_library ('linux')
 posix = valac.find_library ('posix')
-rest = valac.find_library ('rest-0.7')
 
 pkglibdir = join_paths (get_option ('libdir'), meson.project_name ())
 libgd = subproject (
@@ -70,8 +68,9 @@ conf.set_quoted ('CACHEDIR', '/var/cache')
 conf.set_quoted ('LOCALEDIR', locale_dir)
 conf.set('PACKAGE_BUGREPORT', '"https://bugzilla.gnome.org/enter_bug.cgi?product=gnome-boxes"')
 
-if govirt.found()
-  conf.set10 ('HAVE_OVIRT', get_option ('ovirt'))
+if get_option ('ovirt')
+  govirt = dependency ('govirt-1.0', version: '>= 0.3.4')
+  rest = valac.find_library ('rest-0.7')
 endif
 
 configure_file (output: 'config.h', configuration: conf)

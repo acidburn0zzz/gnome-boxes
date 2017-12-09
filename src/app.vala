@@ -132,8 +132,9 @@ private class Boxes.App: Gtk.Application {
         });
 
         brokers.insert ("libvirt", LibvirtBroker.get_default ());
-        if (Config.HAVE_OVIRT)
-            brokers.insert ("ovirt", OvirtBroker.get_default ());
+#if HAVE_OVIRT
+        brokers.insert ("ovirt", OvirtBroker.get_default ());
+#endif
 
         check_cpu_vt_capability.begin ();
         check_module_kvm_loaded.begin ();

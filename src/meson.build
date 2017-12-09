@@ -42,6 +42,16 @@ libcommon = static_library(
   c_args: c_args
 )
 
+executable ('gnome-boxes-search-provider', 'gnome-boxes-search-provider.vala',
+            include_directories: config_h_dir,
+            vala_args: vala_args,
+            c_args: c_args,
+            dependencies: common_dependencies,
+            link_with: libcommon,
+            install: true,
+            install_dir: get_option ('libexecdir')
+)
+
 vala_sources = [
   'app.vala',
   'app-window.vala',
@@ -113,20 +123,6 @@ vala_sources = [
   'snapshots-property.vala',
 ]
 
-if govirt.found ()
-  if get_option ('ovirt')
-    vala_sources += [
-      'ovirt-broker.vala',
-      'ovirt-machine.vala',
-    ]
-  endif
-endif
-
-boxes_sources = [
-  vala_sources,
-  resources
-]
-
 dependencies = [
   config,
   gio_workaround,
@@ -146,17 +142,29 @@ dependencies = [
   libosinfo,
   libsoup,
   libarchive,
-  rest,
   tracker,
   posix,
   webkitgtk,
 ]
 
-if govirt.found()
-  if get_option ('ovirt')
-    dependencies += govirt
-  endif
+if get_option ('ovirt')
+  vala_sources += [
+    'ovirt-broker.vala',
+    'ovirt-machine.vala',
+  ]
+
+  vala_args += '--define=HAVE_OVIRT'
+
+  dependencies += [
+    govirt,
+    rest,
+  ]
 endif
+
+boxes_sources = [
+  vala_sources,
+  resources
+]
 
 executable ('gnome-boxes', boxes_sources,
             include_directories: config_h_dir,
@@ -165,14 +173,4 @@ executable ('gnome-boxes', boxes_sources,
             dependencies: dependencies,
             link_with: libcommon,
             install: true
-)
-
-executable ('gnome-boxes-search-provider', 'gnome-boxes-search-provider.vala',
-            include_directories: config_h_dir,
-            vala_args: vala_args,
-            c_args: c_args,
-            dependencies: common_dependencies,
-            link_with: libcommon,
-            install: true,
-            install_dir: get_option ('libexecdir')
 )
