@@ -53,8 +53,6 @@ libgd = subproject (
 libgd_vapi_dep = libgd.get_variable ('libgd_vapi_dep')
 libgd_dep = libgd.get_variable('libgd_dep')
 
-msgfmt = find_program ('msgfmt')
-
 po_dir = join_paths (meson.source_root (), 'po')
 data_dir = join_paths (get_option ('prefix'), get_option ('datadir'))
 locale_dir = join_paths (data_dir, '/locale')
