@@ -1,6 +1,1 @@
-<?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" 
-  "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
-<svg width="7px" height="30px">
-    <path style="stroke:none;fill:#3465a4" d="m 0 0 l 7 15 l -7 15 z"/>
-</svg>
+<svg width="7" height="30"><path fill="#3465a4" stroke="none" d="m 0 0 l 7 15 l -7 15 z"/></svg>
